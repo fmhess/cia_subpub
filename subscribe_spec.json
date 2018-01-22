@@ -1,0 +1,9 @@
+[
+	{
+		"name": "subscribe",
+		"params": {
+			"channel" : "string",
+			"socket_path": "string"
+		}
+	}
+]

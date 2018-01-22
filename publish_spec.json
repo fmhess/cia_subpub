@@ -1,0 +1,9 @@
+[
+	{
+		"name": "publish",
+		"params": {
+			"channel" : "string",
+			"event_id": 1
+		}
+	}
+]
