@@ -39,7 +39,10 @@ int main(int argc, char* argv[])
 	jsonrpc::UnixDomainSocketServer server_connector(receive_publication_socket_path.c_str());
 	receive_publication_server pub_server(server_connector);
 
-	pub_server.StartListening();
+	if(pub_server.StartListening() == false)
+	{
+		throw std::runtime_error("Failed to start receive publication server.  You probably need to unlink socket.");
+	}
 	sub_client.subscribe(channel , receive_publication_socket_path);
     getchar();
 	pub_server.StopListening();

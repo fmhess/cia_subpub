@@ -179,16 +179,29 @@ namespace cia_subpub
 
 int main()
 {
-	jsonrpc::UnixDomainSocketServer publish_server_connector("/tmp/mypublishsocket");
-	cia_subpub::publish_server my_publish_server(publish_server_connector);
-	
-	jsonrpc::UnixDomainSocketServer subscribe_server_connector("/tmp/mysubscribesocket");
-	cia_subpub::subscribe_server my_subscribe_server(subscribe_server_connector, my_publish_server.subscribers());
+	try
+	{
+		jsonrpc::UnixDomainSocketServer publish_server_connector("/tmp/mypublishsocket");
+		cia_subpub::publish_server my_publish_server(publish_server_connector);
+		
+		jsonrpc::UnixDomainSocketServer subscribe_server_connector("/tmp/mysubscribesocket");
+		cia_subpub::subscribe_server my_subscribe_server(subscribe_server_connector, my_publish_server.subscribers());
 
-	my_publish_server.StartListening();
-	my_subscribe_server.StartListening();
-	getchar();
-	my_publish_server.StopListening();
-	my_subscribe_server.StopListening();
+		if(my_publish_server.StartListening() == false)
+		{
+			throw std::runtime_error("Failed to start publish server.  You probably need to unlink socket.");
+		}
+		if(my_subscribe_server.StartListening() == false)
+		{
+			throw std::runtime_error("Failed to start subscribe server.  You probably need to unlink socket.");
+		}
+		getchar();
+		my_publish_server.StopListening();
+		my_subscribe_server.StopListening();
+	}
+	catch(const std::exception &err)
+	{
+		std::cerr << err.what() << std::endl;
+	}
 	return 0;
 }
