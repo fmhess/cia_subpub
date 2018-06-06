@@ -1,6 +1,7 @@
 #include <jsonrpccpp/server/connectors/unixdomainsocketserver.h>
 #include <jsonrpccpp/client/connectors/unixdomainsocketclient.h>
 #include <iostream>
+#include <cassert>
 #include <condition_variable>
 #include <map>
 #include <memory>
@@ -95,30 +96,46 @@ namespace cia_subpub
 	public:
 		void publish(const std::string& channel, int event_id)
 		{
-			std::lock_guard<std::mutex> lock(m_mutex);
-			
-			auto map_it = m_map.find(channel);
-			if (map_it == m_map.end())
+			std::map<std::string, std::map<std::string, std::shared_ptr<subscriber> > > local_map;
+			// make a local copy of the map while holding the mutex, so we can drop the mutex
+			// before publishing (avoiding potential deadlocks if publish causes subscription changes).
 			{
-				return;
+				std::lock_guard<std::mutex> lock(m_mutex);
+				
+				// clean up map while we hold mutex 
+				auto map_it = m_map.find(channel);
+				if (map_it == m_map.end())
+				{
+					return;
+				}
+				auto &socket_map = (*map_it).second;
+				for(auto socket_map_it = socket_map.begin(); socket_map_it != socket_map.end(); ++socket_map_it)
+				{
+					while(socket_map_it != socket_map.end() && (*socket_map_it).second->alive() == false)
+					{
+						std::cerr << "Removing dead subscriber from channel \"" << channel << "\"." << std::endl;
+						auto dead_it = socket_map_it;
+						++socket_map_it;
+						socket_map.erase(dead_it);
+					}
+					if(socket_map_it == socket_map.end()) break;
+				}
+				if(socket_map.empty())
+				{
+					std::cerr << "Cleaning up empty subscriber socket map for channel \"" << channel << "\"." << std::endl;
+					m_map.erase(map_it);
+					return;
+				}
+				
+				local_map = m_map;
 			}
+			
+			auto map_it = local_map.find(channel);
+			assert(map_it != local_map.end());
 			auto &socket_map = (*map_it).second;
 			for(auto socket_map_it = socket_map.begin(); socket_map_it != socket_map.end(); ++socket_map_it)
 			{
-				while(socket_map_it != socket_map.end() && (*socket_map_it).second->alive() == false)
-				{
-					std::cerr << "Removing dead subscriber from channel \"" << channel << "\"." << std::endl;
-					auto dead_it = socket_map_it;
-					++socket_map_it;
-					socket_map.erase(dead_it);
-				}
-				if(socket_map_it == socket_map.end()) break;
 				(*socket_map_it).second->publish(event_id);
-			}
-			if(socket_map.empty())
-			{
-				std::cerr << "Cleaning up empty subscriber socket map for channel \"" << channel << "\"." << std::endl;
-				m_map.erase(map_it);
 			}
 		}
 		
