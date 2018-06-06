@@ -102,22 +102,22 @@ namespace cia_subpub
 			{
 				return;
 			}
-			auto &set = (*map_it).second;
-			for(auto set_it = set.begin(); set_it != set.end(); ++set_it)
+			auto &socket_map = (*map_it).second;
+			for(auto socket_map_it = socket_map.begin(); socket_map_it != socket_map.end(); ++socket_map_it)
 			{
-				while(set_it != set.end() && (*set_it)->alive() == false)
+				while(socket_map_it != socket_map.end() && (*socket_map_it).second->alive() == false)
 				{
 					std::cerr << "Removing dead subscriber from channel \"" << channel << "\"." << std::endl;
-					auto dead_it = set_it;
-					++set_it;
-					set.erase(dead_it);
+					auto dead_it = socket_map_it;
+					++socket_map_it;
+					socket_map.erase(dead_it);
 				}
-				if(set_it == set.end()) break;
-				(*set_it)->publish(event_id);
+				if(socket_map_it == socket_map.end()) break;
+				(*socket_map_it).second->publish(event_id);
 			}
-			if(set.empty())
+			if(socket_map.empty())
 			{
-				std::cerr << "Cleaning up empty subscriber set for channel \"" << channel << "\"." << std::endl;
+				std::cerr << "Cleaning up empty subscriber socket map for channel \"" << channel << "\"." << std::endl;
 				m_map.erase(map_it);
 			}
 		}
@@ -126,11 +126,26 @@ namespace cia_subpub
 		{
 			std::lock_guard<std::mutex> lock(m_mutex);
 
-			m_map[channel].insert(std::shared_ptr<subscriber>(new subscriber(channel, subscriber_socket_path)));
+			m_map[channel][subscriber_socket_path] = std::shared_ptr<subscriber>(new subscriber(channel, subscriber_socket_path));
 		}
+		
+		void unsubscribe(const std::string &channel, const std::string &subscriber_socket_path)
+		{
+			std::lock_guard<std::mutex> lock(m_mutex);
+
+			auto map_it = m_map.find(channel);
+			if (map_it == m_map.end()) return;
+			auto &socket_map = (*map_it).second;
+			socket_map.erase(subscriber_socket_path);
+			if (socket_map.empty())
+			{
+				m_map.erase(map_it);
+			}
+		}
+		
 	private:
 		std::mutex m_mutex;
-		std::map<std::string, std::set<std::shared_ptr<subscriber> > > m_map;
+		std::map<std::string, std::map<std::string, std::shared_ptr<subscriber> > > m_map;
 	};
 	
 	class publish_server : public abstract_publish_server
@@ -162,6 +177,7 @@ namespace cia_subpub
 		subscribe_server(jsonrpc::AbstractServerConnector &connector, const std::shared_ptr<subscriber_map> &subscribers);
 
 		virtual void subscribe(const std::string& channel, const std::string& socket_path);
+		virtual void unsubscribe(const std::string& channel, const std::string& socket_path);
 	private:
 		std::shared_ptr<subscriber_map> m_subscribers;
 	};
@@ -174,6 +190,11 @@ namespace cia_subpub
 	void subscribe_server::subscribe(const std::string& channel, const std::string& socket_path)
 	{
 		m_subscribers->add_subscriber(channel, socket_path);
+	}
+
+	void subscribe_server::unsubscribe(const std::string& channel, const std::string& socket_path)
+	{
+		m_subscribers->unsubscribe(channel, socket_path);
 	}
 }
 

@@ -20,6 +20,13 @@ namespace cia_subpub {
                 p["socket_path"] = socket_path;
                 this->CallNotification("subscribe",p);
             }
+            void unsubscribe(const std::string& channel, const std::string& socket_path) throw (jsonrpc::JsonRpcException)
+            {
+                Json::Value p;
+                p["channel"] = channel;
+                p["socket_path"] = socket_path;
+                this->CallNotification("unsubscribe",p);
+            }
     };
 
 }

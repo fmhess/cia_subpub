@@ -5,5 +5,12 @@
 			"channel" : "string",
 			"socket_path": "string"
 		}
+	},
+	{
+		"name": "unsubscribe",
+		"params": {
+			"channel" : "string",
+			"socket_path": "string"
+		}
 	}
 ]
