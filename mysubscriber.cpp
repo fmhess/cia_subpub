@@ -44,7 +44,22 @@ int main(int argc, char* argv[])
 		throw std::runtime_error("Failed to start receive publication server.  You probably need to unlink socket.");
 	}
 	sub_client.subscribe(channel , receive_publication_socket_path);
-    getchar();
+    do
+	{
+		char command = getchar();
+		switch(command)
+		{
+		case 's':
+			sub_client.subscribe(channel , receive_publication_socket_path);
+			break;
+		case 'u':
+			sub_client.unsubscribe(channel , receive_publication_socket_path);
+			break;
+		default:
+			break;
+		}
+		if(command == 'q') break;
+	} while (1);
 	pub_server.StopListening();
 
     return 0;
